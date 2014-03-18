@@ -7,16 +7,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include <math.h>
 
 #define SIZE 9
 
 typedef struct {
-    int line, column, number;
+    int line, column, block;
 } Info;
 
 
 int sudoku[SIZE][SIZE];
+int sudokuAux[SIZE][SIZE];
 char messages[100][128];
 int counter;
 
@@ -68,6 +70,24 @@ void printSudoku() {
     printf("\n\n\n");
 }
 
+// Imprime SudokuAux, onde ficam salvas as dicas, lembrando que as dicas ficam no formato
+// 1289 = 1, 2, 8 e 9
+void printSudokuAux() {
+
+    int i, j;
+
+    for (i = 0; i < SIZE; i ++) {
+        for (j = 0; j < SIZE; j++) {
+            if (sudoku[i][j] != 0) {
+                printf("%d ", sudoku[i][j]);
+            } else {
+                printf("(%d) ", sudokuAux[i][j]);
+            }
+        }
+        printf("\n");
+    }
+}
+
 // Imprime mensagens
 void printMessages() {
 
@@ -76,6 +96,35 @@ void printMessages() {
     for (i = 0; i < counter; i ++)
         printf("%s\n", messages[i]);
 
+}
+
+// Determina o bloco dadas linha e coluna
+int getBlock(int line, int column) {
+    if (line < 3) {
+        if (column < 3) {
+            return 0;
+        } else if (column < 6) {
+            return 1;
+        } else {
+            return 2;
+        }
+    } else if (line < 6) {
+        if (column < 3) {
+            return 3;
+        } else if (column < 6) {
+            return 4;
+        } else {
+            return 5;
+        }
+    } else {
+        if (column < 3) {
+            return 6;
+        } else if (column < 6) {
+            return 7;
+        } else  {
+            return 8;
+        }
+    }
 }
 
 // Verifica se há algum número repetido na linha
@@ -95,7 +144,7 @@ void* checkLine(void* line) {
 
     for (i = 0; i < SIZE; i ++) {
         if (sudoku[l][i] != 0)
-            numbers[sudoku[l][i]] ++;
+            numbers[sudoku[l][i] - 1] ++;
     }
 
     for (i = 0; i < SIZE; i ++) {
@@ -126,7 +175,7 @@ void* checkColumn(void* column) {
 
     for (i = 0; i < SIZE; i ++) {
         if (sudoku[i][c] != 0)
-            numbers[sudoku[i][c]] ++;
+            numbers[sudoku[i][c] - 1] ++;
     }
 
     for (i = 0; i < SIZE; i ++) {
@@ -166,21 +215,21 @@ void* checkColumn(void* column) {
 */
 void* checkBlock(void* block) {
 
-    int numbers[SIZE], i, j, b, *r, iLim, jLim;
+    int numbers[SIZE], i, j, b, *r, iAux, jAux;
     r = malloc(sizeof(int));
     *r = 0;
     b = *(int *) block;
 
-    iLim = b / 3;
-    jLim = b % 3;
+    iAux = b / 3;
+    jAux = b % 3;
 
     for (i = 0; i < SIZE; i ++)
         numbers[i] = 0;
 
-    for (i = iLim * 3; i < (iLim + 1) * 3; i ++) {
-        for (j = jLim * 3; j < (jLim + 1) * 3; j ++) {
+    for (i = iAux * 3; i < (iAux + 1) * 3; i ++) {
+        for (j = jAux * 3; j < (jAux + 1) * 3; j ++) {
             if (sudoku[i][j] != 0)
-                numbers[sudoku[i][j]] ++;
+                numbers[sudoku[i][j] - 1] ++;
         }
     }
 
@@ -197,6 +246,9 @@ void* checkBlock(void* block) {
 
 
 // Verifica se o Sudoku possui erros
+// É criada uma thread para verificar cada linha, cada coluna e cada bloco
+// totalizando 27 thread criadas.
+// Retorna 1 se foi encontrado algum erro e 0 caso contrario
 int check() {
 
     int i, count, *n, r, rTemp;
@@ -208,30 +260,102 @@ int check() {
     for (i = 0; i < SIZE; i ++) {
         n = malloc(sizeof(int));
         *n = i;
-        pthread_create(&thr[count], NULL, lineCheck, (void*) n);
+        pthread_create(&thr[count], NULL, checkLine, (void*) n);
         count ++;
     }
 
     for (i = 0; i < SIZE; i ++) {
         n = malloc(sizeof(int));
         *n = i;
-        pthread_create(&thr[count], NULL, columnCheck, (void*) n);
+        pthread_create(&thr[count], NULL, checkColumn, (void*) n);
         count ++;
     }
 
     for (i = 0; i < SIZE; i ++) {
         n = malloc(sizeof(int));
         *n = i;
-        pthread_create(&thr[count], NULL, blockCheck, (void*) n);
+        pthread_create(&thr[count], NULL, checkBlock, (void*) n);
         count ++;
     }
 
-    for (i = 0; i < counter; i ++) {
+    for (i = 0; i < count; i ++) {
         pthread_join(thr[i], (void**) &rTemp);
         r = r | rTemp;
     }
 
     return r;
+}
+
+// Salva em sudokuAux os numeros possiveis para a posição passada como parametro
+// Se o numero salvo é 1289, significa que as opções para aquela posição são 1, 2, 8 e 9
+void* tipsAux(void* position) {
+
+    int i, j, iAux, jAux, numbers[SIZE], num;
+    Info *info;
+
+    num = 0;
+    info = (Info*) position;
+    iAux = info->block / 3;
+    jAux = info->block % 3;
+
+    for (i = 0; i < SIZE; i ++) {
+        numbers[i] = 0;
+    }
+
+    for (i = 0; i < SIZE; i ++) {
+        if (sudoku[info->line][i] != 0)
+            numbers[sudoku[info->line][i] - 1] = 1;
+        if (sudoku[i][info->column] != 0)
+            numbers[sudoku[i][info->column] - 1] = 1;
+    }
+
+    for (i = iAux * 3; i < (iAux + 1) * 3; i ++) {
+        for (j = jAux * 3; j < (jAux + 1) * 3; j ++) {
+            if (sudoku[i][j] != 0)
+                numbers[sudoku[i][j] - 1] = 1;
+        }
+    }
+
+    for (i = 0; i < SIZE; i ++) {
+        if (numbers[i] == 0) {
+            num = num * 10 + (i + 1);
+        }
+    }
+
+    sudokuAux[info->line][info->column] = num;
+    printf("%d\n", num);
+    free(position);
+    return NULL;
+}
+
+
+// Cria uma thread para cada posição vazia, procurando as possívies opções para preencher
+// a determinada posição, salvando essas opções em sudokuAux.
+void tips() {
+
+    int i, j, count;
+    pthread_t thr[81];
+    Info *info;
+
+    count = 0;
+
+    for (i = 0; i < SIZE; i ++) {
+        for (j = 0; j < SIZE; j ++) {
+            if (sudoku[i][j] == 0) {
+                info = malloc(sizeof(Info));
+                info->line = i;
+                info->column = j;
+                info->block = getBlock(i, j);
+                pthread_create(&thr[count], NULL, tipsAux, (void*) info);
+                count ++;
+            } else {
+                sudokuAux[i][j] = sudoku[i][j];
+            }
+        }
+    }
+    for (i = 0; i < count; i ++)
+        pthread_join(thr[i], NULL);
+
 }
 
 int main() {
@@ -249,11 +373,14 @@ int main() {
 
             readSudoku();
             check();
+            printMessages();
 
         // Dá dicas do Sudoku
         } else if (option == 2) {
 
             readSudoku();
+            tips();
+            printSudokuAux();
 
         // Resolve o Sudoku
         } else if (option == 3) {
