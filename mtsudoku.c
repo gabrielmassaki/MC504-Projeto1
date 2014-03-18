@@ -68,9 +68,21 @@ void printSudoku() {
     printf("\n\n\n");
 }
 
+// Imprime mensagens
+void printMessages() {
+
+    int i;
+
+    for (i = 0; i < counter; i ++)
+        printf("%s\n", messages[i]);
+
+}
+
 // Verifica se há algum número repetido na linha
 // O vetor numbers é inicializado com 0, é somado 1 em cada índice do vetor que aparece na linha
 // Os índices que possuirem valor maior que 1 apareceram mais de uma vez na linha
+// Se foram encontrados erros, a mensagem é salva
+// Retorna 1 sse houve erro e 0 caso contrario
 void* checkLine(void* line) {
 
     int numbers[SIZE], i, l, *r;
@@ -83,12 +95,13 @@ void* checkLine(void* line) {
 
     for (i = 0; i < SIZE; i ++) {
         if (sudoku[l][i] != 0)
-            numbers[i] ++;
+            numbers[sudoku[l][i]] ++;
     }
 
     for (i = 0; i < SIZE; i ++) {
         if (numbers[i] > 1) {
-            sprintf (messages[counter], "A linha %d contém %d ocorrências do número %d.\n", l, numbers[i], i + 1);
+            sprintf (messages[counter], "A linha %d contém %d ocorrências do número %d.", l + 1, numbers[i], i + 1);
+            counter ++;
             *r = 1;
         }
     }
@@ -96,6 +109,130 @@ void* checkLine(void* line) {
     return (void*) r;
 }
 
+// Verifica se há algum número repetido na coluna
+// O vetor numbers é inicializado com 0, é somado 1 em cada índice do vetor que aparece na coluna
+// Os índices que possuirem valor maior que 1 apareceram mais de uma vez na coluna
+// Se foram encontrados erros, a mensagem é salva
+// Retorna 1 sse houve erro e 0 caso contrario
+void* checkColumn(void* column) {
+
+    int numbers[SIZE], i, c, *r;
+    r = malloc(sizeof(int));
+    *r = 0;
+    c = *(int *) column;
+
+    for (i = 0; i < SIZE; i ++)
+        numbers[i] = 0;
+
+    for (i = 0; i < SIZE; i ++) {
+        if (sudoku[i][c] != 0)
+            numbers[sudoku[i][c]] ++;
+    }
+
+    for (i = 0; i < SIZE; i ++) {
+        if (numbers[i] > 1) {
+            sprintf (messages[counter], "A coluna %d contém %d ocorrências do número %d.", c + 1, numbers[i], i + 1);
+            counter ++;
+            *r = 1;
+        }
+    }
+    free(column);
+    return (void*) r;
+}
+
+// Verifica se há algum número repetido no bloco
+// O vetor numbers é inicializado com 0, é somado 1 em cada índice do vetor que aparece no bloco
+// Os índices que possuirem valor maior que 1 apareceram mais de uma vez no bloco
+// Se foram encontrados erros, a mensagem é salva
+// Retorna 1 sse houve erro e 0 caso contrario
+/*
+
+    Blocos:
+
+    -------------------------
+    |       |       |       |
+    |   0   |   1   |   2   |
+    |       |       |       |
+    -------------------------
+    |       |       |       |
+    |   3   |   4   |   5   |
+    |       |       |       |
+    -------------------------
+    |       |       |       |
+    |   6   |   7   |   8   |
+    |       |       |       |
+    -------------------------
+
+*/
+void* checkBlock(void* block) {
+
+    int numbers[SIZE], i, j, b, *r, iLim, jLim;
+    r = malloc(sizeof(int));
+    *r = 0;
+    b = *(int *) block;
+
+    iLim = b / 3;
+    jLim = b % 3;
+
+    for (i = 0; i < SIZE; i ++)
+        numbers[i] = 0;
+
+    for (i = iLim * 3; i < (iLim + 1) * 3; i ++) {
+        for (j = jLim * 3; j < (jLim + 1) * 3; j ++) {
+            if (sudoku[i][j] != 0)
+                numbers[sudoku[i][j]] ++;
+        }
+    }
+
+    for (i = 0; i < SIZE; i ++) {
+        if (numbers[i] > 1) {
+            sprintf (messages[counter], "O bloco %d contém %d ocorrências do número %d.", b, numbers[i], i + 1);
+            counter ++;
+            *r = 1;
+        }
+    }
+    free(block);
+    return (void*) r;
+}
+
+
+// Verifica se o Sudoku possui erros
+int check() {
+
+    int i, count, *n, r, rTemp;
+    pthread_t thr[27];
+
+    r = 0;
+    count = 0;
+
+    for (i = 0; i < SIZE; i ++) {
+        n = malloc(sizeof(int));
+        *n = i;
+        pthread_create(&thr[count], NULL, lineCheck, (void*) n);
+        count ++;
+    }
+
+    for (i = 0; i < SIZE; i ++) {
+        n = malloc(sizeof(int));
+        *n = i;
+        pthread_create(&thr[count], NULL, columnCheck, (void*) n);
+        count ++;
+    }
+
+    for (i = 0; i < SIZE; i ++) {
+        n = malloc(sizeof(int));
+        *n = i;
+        pthread_create(&thr[count], NULL, blockCheck, (void*) n);
+        count ++;
+    }
+
+    for (i = 0; i < counter; i ++) {
+        pthread_join(thr[i], (void**) &rTemp);
+        r = r | rTemp;
+    }
+
+    return r;
+}
 
 int main() {
 
@@ -110,20 +247,22 @@ int main() {
         // Verifica o Sudoku    
         if (option == 1) {
 
-        readSudoku();
+            readSudoku();
+            check();
 
         // Dá dicas do Sudoku
         } else if (option == 2) {
 
+            readSudoku();
 
         // Resolve o Sudoku
         } else if (option == 3) {
 
+            readSudoku();
 
         // Sai do programa
         } else if (option == 4) {
-
-
+            break;
         }
     }
 
