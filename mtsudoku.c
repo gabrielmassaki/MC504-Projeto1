@@ -35,6 +35,11 @@ void printMenu() {
 
 }
 
+// Retorna a largura do numero
+int getLength(int n) {
+    return floor(log10(abs(n))) + 1;
+}
+
 // Lê o Sudoku
 void readSudoku() {
 
@@ -76,6 +81,7 @@ void printSudokuAux() {
 
     int i, j;
 
+    printf("\n\n\n");
     for (i = 0; i < SIZE; i ++) {
         for (j = 0; j < SIZE; j++) {
             if (sudoku[i][j] != 0) {
@@ -86,6 +92,7 @@ void printSudokuAux() {
         }
         printf("\n");
     }
+    printf("\n\n\n");
 }
 
 // Imprime mensagens
@@ -288,6 +295,7 @@ int check() {
 
 // Salva em sudokuAux os numeros possiveis para a posição passada como parametro
 // Se o numero salvo é 1289, significa que as opções para aquela posição são 1, 2, 8 e 9
+// Usa a mesma lógica do check para achar quais numeros são válidos
 void* tipsAux(void* position) {
 
     int i, j, iAux, jAux, numbers[SIZE], num;
@@ -323,7 +331,6 @@ void* tipsAux(void* position) {
     }
 
     sudokuAux[info->line][info->column] = num;
-    printf("%d\n", num);
     free(position);
     return NULL;
 }
@@ -358,6 +365,36 @@ void tips() {
 
 }
 
+// Resolve o sudoku usando as dicas, se aproveitando do fato de que as vezes alguma dica retorna 
+// um único número, que portanto deve ser colocado na posição
+// Caso a quantidade de zeros chegue a 0, significa que o sudoku foi completo
+// Caso a quantidade de zeros não se altere após uma iteração, significa que não é possível resolver usando
+// esse método, pois existe alguma inferência. Nesse caso é usada força bruta para achar a solução
+void solve() {
+
+    int i, j, zeros, oldZeros;
+
+    zeros = 1;
+    oldZeros = 0;
+    while(zeros != 0) {
+        zeros = 0;
+        tips();
+        for (i = 0; i < SIZE; i ++) {
+            for (j = 0; j < SIZE; j ++) {
+                if (sudoku[i][j] == 0) {
+                    zeros ++;
+                    if (getLength(sudokuAux[i][j]) == 1) {
+                        sudoku[i][j] = sudokuAux[i][j];
+                    }
+                }
+            }
+        }
+        if (oldZeros == zeros)
+            break;
+        oldZeros = zeros;
+    }
+}
+
 int main() {
 
     int option;
@@ -386,6 +423,7 @@ int main() {
         } else if (option == 3) {
 
             readSudoku();
+            solve();
 
         // Sai do programa
         } else if (option == 4) {
