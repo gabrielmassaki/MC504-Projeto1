@@ -11,8 +11,14 @@
 
 #define SIZE 9
 
-int sudoku[SIZE][SIZE];
+typedef struct {
+    int line, column, number;
+} Info;
 
+
+int sudoku[SIZE][SIZE];
+char messages[100][128];
+int counter;
 
 // Imprime o menu inicial
 void printMenu() {
@@ -47,6 +53,7 @@ void readSudoku() {
     }
 }
 
+// Imprime o Sudoku
 void printSudoku() {
 
     int i, j;
@@ -61,25 +68,59 @@ void printSudoku() {
     printf("\n\n\n");
 }
 
+// Verifica se há algum número repetido na linha
+// O vetor numbers é inicializado com 0, é somado 1 em cada índice do vetor que aparece na linha
+// Os índices que possuirem valor maior que 1 apareceram mais de uma vez na linha
+void* checkLine(void* line) {
+
+    int numbers[SIZE], i, l, *r;
+    r = malloc(sizeof(int));
+    *r = 0;
+    l = *(int *) line;
+
+    for (i = 0; i < SIZE; i ++)
+        numbers[i] = 0;
+
+    for (i = 0; i < SIZE; i ++) {
+        if (sudoku[l][i] != 0)
+            numbers[i] ++;
+    }
+
+    for (i = 0; i < SIZE; i ++) {
+        if (numbers[i] > 1) {
+            sprintf (messages[counter], "A linha %d contém %d ocorrências do número %d.\n", l, numbers[i], i + 1);
+            *r = 1;
+        }
+    }
+    free(line);
+    return (void*) r;
+}
+
+
 int main() {
 
     int option;
 
     while(1) {
 
+        counter = 0;
         printMenu();
         scanf("%d", &option);
-        readSudoku();
-        printSudoku();
-    
+
+        // Verifica o Sudoku    
         if (option == 1) {
 
+        readSudoku();
+
+        // Dá dicas do Sudoku
         } else if (option == 2) {
 
 
+        // Resolve o Sudoku
         } else if (option == 3) {
 
 
+        // Sai do programa
         } else if (option == 4) {
 
 
