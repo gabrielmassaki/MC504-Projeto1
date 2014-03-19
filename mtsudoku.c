@@ -365,6 +365,43 @@ void tips() {
 
 }
 
+// Resolve usando forca bruta, testando todos os valores possives para as posicoes até
+// encontrar o valor certo para posicao
+int solveBruteForce(int line, int column) {
+    
+    int l, c, num, aux;
+    
+    c = column + 1;
+    if (c == 9) {
+        c = 0;
+        l = line + 1;
+        if (l == 9) {
+            return 1;
+        }
+    }
+    
+    if (sudoku[line][column] == 0) {
+        num = sudokuAux[line][column];
+        while(num != 0) {
+            aux = num % 10;
+            sudoku[line][column] = aux;
+            if (solveBruteForce(c, l) == 1) {
+                return 1;
+            } else {
+                sudoku[line][column] = 0;
+            }
+            num = num / 10;
+        }
+        return 0;
+    } else {
+        if (solveBruteForce(l, c) == 1)
+            return 1;
+        else
+            return 0;
+    }
+}
+
+
 // Resolve o sudoku usando as dicas, se aproveitando do fato de que as vezes alguma dica retorna 
 // um único número, que portanto deve ser colocado na posição
 // Caso a quantidade de zeros chegue a 0, significa que o sudoku foi completo
@@ -392,6 +429,9 @@ void solve() {
         if (oldZeros == zeros)
             break;
         oldZeros = zeros;
+    }
+    if (zeros != 0) {
+        solveBruteForce(0, 0);
     }
 }
 
