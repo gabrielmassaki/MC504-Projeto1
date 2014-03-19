@@ -258,7 +258,7 @@ void* checkBlock(void* block) {
 // Retorna 1 se foi encontrado algum erro e 0 caso contrario
 int check() {
 
-    int i, count, *n, r, rTemp;
+    int i, count, *n, r, *rTemp;
     pthread_t thr[27];
 
     r = 0;
@@ -287,7 +287,8 @@ int check() {
 
     for (i = 0; i < count; i ++) {
         pthread_join(thr[i], (void**) &rTemp);
-        r = r | rTemp;
+        r = r | *rTemp;
+		free(rTemp);
     }
 
     return r;
@@ -371,26 +372,31 @@ int solveBruteForce(int line, int column) {
     
     int l, c, num, aux;
     
+	counter = 0;
     c = column + 1;
+	l = line;
+	if (line == 9)
+		return 1;
     if (c == 9) {
         c = 0;
-        l = line + 1;
-        if (l == 9) {
-            return 1;
-        }
+        l ++;
     }
     
     if (sudoku[line][column] == 0) {
         num = sudokuAux[line][column];
         while(num != 0) {
             aux = num % 10;
+            num = num / 10;
             sudoku[line][column] = aux;
-            if (solveBruteForce(c, l) == 1) {
+			if (check() != 0) {
+				sudoku[line][column] = 0;
+				continue;
+			}
+            if (solveBruteForce(l, c) == 1) {
                 return 1;
             } else {
                 sudoku[line][column] = 0;
             }
-            num = num / 10;
         }
         return 0;
     } else {
@@ -464,6 +470,7 @@ int main() {
 
             readSudoku();
             solve();
+			tips();
             printSudoku();
 
         // Sai do programa
