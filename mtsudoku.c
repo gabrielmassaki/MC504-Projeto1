@@ -464,6 +464,7 @@ int main() {
 
             readSudoku();
             solve();
+            printSudoku();
 
         // Sai do programa
         } else if (option == 4) {
